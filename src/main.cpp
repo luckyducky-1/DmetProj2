@@ -11,6 +11,7 @@
 #include <stdexcept>
 #include <string>
 #include "Model.h"
+#include <cmath>
 void resizeWindow(GLFWwindow*, int width, int height)
 {
     glViewport(0, 0, width, height);
@@ -150,6 +151,33 @@ int main()
         glUniform1i(
             glGetUniformLocation(program, "diffuseTexture"), 0
         );
+        GLint directionalColorLocation =
+    glGetUniformLocation(program, "directionalColor");
+GLint pointColorLocation =
+    glGetUniformLocation(program, "pointColor");
+GLint spotColorLocation =
+    glGetUniformLocation(program, "spotColor");
+
+glUniform3f(
+    glGetUniformLocation(program, "directionalDirection"),
+    -0.5f, -1.0f, -0.3f
+);
+
+glUniform3f(
+    glGetUniformLocation(program, "pointPosition"),
+    -1.2f, 1.5f, 0.8f
+);
+
+glUniform3f(
+    glGetUniformLocation(program, "spotPosition"),
+    1.5f, 2.5f, 2.0f
+);
+
+// Aim the spotlight from its position toward the model's centre.
+glUniform3f(
+    glGetUniformLocation(program, "spotDirection"),
+    -1.5f, -2.5f, -2.0f
+);
 
        glm::mat4 view = glm::lookAt(
     glm::vec3(3.0f, 2.2f, 4.0f),
@@ -166,10 +194,26 @@ int main()
         glUniformMatrix4fv(
             modelLocation, 1, GL_FALSE, glm::value_ptr(model)
         );
+        bool horrorMode = false;
+bool hWasPressed = false;
 
         while (!glfwWindowShouldClose(window)) {
             glfwPollEvents();
+bool hPressed = glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS;
 
+// Toggle once per press, rather than once per frame.
+if (hPressed && !hWasPressed) {
+    horrorMode = !horrorMode;
+
+    glfwSetWindowTitle(
+        window,
+        horrorMode
+            ? "Haunted House - Horror ON"
+            : "Haunted House - Study"
+    );
+}
+
+hWasPressed = hPressed;
             if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
                 glfwSetWindowShouldClose(window, GLFW_TRUE);
             }
@@ -197,7 +241,70 @@ int main()
                 projectionLocation, 1, GL_FALSE,
                 glm::value_ptr(projection)
             );
+            // Hold 1, 2, or 3 to isolate a light and inspect its effect.
+bool moonOnly = glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS;
+bool pointOnly = glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS;
+bool spotOnly = glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS;
 
+bool inspecting = moonOnly || pointOnly || spotOnly;
+
+float moonStrength = (!inspecting || moonOnly) ? 1.0f : 0.0f;
+float pointStrength = (!inspecting || pointOnly) ? 1.0f : 0.0f;
+float spotStrength = (!inspecting || spotOnly) ? 1.0f : 0.0f;
+
+float time = static_cast<float>(glfwGetTime());
+
+glm::vec3 moonColor(0.25f, 0.32f, 0.50f);
+glm::vec3 pointColor(1.20f, 0.65f, 0.25f);
+glm::vec3 spotColor(0.90f, 0.95f, 1.10f);
+
+glm::vec3 spotPosition(1.5f, 2.5f, 2.0f);
+glm::vec3 spotTarget(0.0f);
+
+if (horrorMode) {
+    moonColor *= 0.25f;
+
+    // Uneven, time-based flickering.
+    float flicker =
+        0.55f +
+        0.25f * std::sin(time * 7.0f) +
+        0.15f * std::sin(time * 13.0f);
+
+    pointColor = glm::vec3(1.0f, 0.20f, 0.08f) * flicker;
+    spotColor *= 0.45f;
+
+    spotPosition.x += 0.5f * std::sin(time * 0.7f);
+    spotTarget.x = 0.7f * std::sin(time * 0.9f);
+    spotTarget.z = 0.4f * std::cos(time * 0.6f);
+}
+
+moonColor *= moonStrength;
+pointColor *= pointStrength;
+spotColor *= spotStrength;
+
+glm::vec3 spotDirection = spotTarget - spotPosition;
+
+glUniform3fv(
+    directionalColorLocation, 1, glm::value_ptr(moonColor)
+);
+
+glUniform3fv(
+    pointColorLocation, 1, glm::value_ptr(pointColor)
+);
+
+glUniform3fv(
+    spotColorLocation, 1, glm::value_ptr(spotColor)
+);
+
+glUniform3fv(
+    glGetUniformLocation(program, "spotPosition"),
+    1, glm::value_ptr(spotPosition)
+);
+
+glUniform3fv(
+    glGetUniformLocation(program, "spotDirection"),
+    1, glm::value_ptr(spotDirection)
+);
             table.draw();
             glfwSwapBuffers(window);
         }
