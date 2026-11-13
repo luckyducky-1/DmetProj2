@@ -1,10 +1,12 @@
 #version 330 core
 
+in vec2 texCoord;
+
 out vec4 fragmentColor;
 
-uniform vec3 objectColor;
+uniform sampler2D diffuseTexture;
 
 void main()
 {
-    fragmentColor = vec4(objectColor, 1.0);
+    fragmentColor = texture(diffuseTexture, texCoord);
 }
