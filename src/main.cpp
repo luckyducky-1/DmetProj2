@@ -150,6 +150,10 @@ Model chair(
     chairFolder + "painted_wooden_chair_02_1k.fbx",
     chairFolder + "textures/painted_wooden_chair_02_diff_1k.jpg"
 );
+Model floor(
+    std::string(PROJECT_ROOT) + "/assets/models/study_floor/floor.obj",
+    std::string(PROJECT_ROOT) + "/assets/textures/study_floor.jpg"
+);
         GLint modelLocation = glGetUniformLocation(program, "model");
         GLint viewLocation = glGetUniformLocation(program, "view");
         GLint projectionLocation =
@@ -248,7 +252,7 @@ hWasPressed = hPressed;
                 projectionLocation, 1, GL_FALSE,
                 glm::value_ptr(projection)
             );
-            // Hold 1, 2, or 3 to isolate a light and inspect its effect.
+            // Hold 1, 2, or 3 to isolate a light and inspect its effect
 bool moonOnly = glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS;
 bool pointOnly = glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS;
 bool spotOnly = glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS;
@@ -311,7 +315,21 @@ glUniform3fv(
 glUniform3fv(
     glGetUniformLocation(program, "spotDirection"),
     1, glm::value_ptr(spotDirection)
+);// Place the floor below the furniture
+glm::mat4 floorModel = glm::translate(
+    glm::mat4(1.0f),
+    glm::vec3(0.0f, -0.65f, 0.0f)
 );
+
+floorModel = glm::scale(
+    floorModel,
+    glm::vec3(4.0f, 1.0f, 4.0f)
+);
+
+glUniformMatrix4fv(
+    modelLocation, 1, GL_FALSE, glm::value_ptr(floorModel)
+);
+floor.draw();
 // The table stays at the centre.
 glm::mat4 tableModel(1.0f);
 
@@ -320,8 +338,8 @@ glUniformMatrix4fv(
 );
 table.draw();
 
-// Our loader gives every model a longest side of two units.
-// Scale the chair down and place it beside the table.
+// Our loader gives every model a longest side of two units
+// Scale the chair down and place it beside the table
 glm::mat4 chairModel = glm::translate(
     glm::mat4(1.0f),
     glm::vec3(1.4f, 0.0f, 0.0f)
