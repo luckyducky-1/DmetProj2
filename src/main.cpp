@@ -164,8 +164,14 @@ std::string shelfFolder =
 Model shelf(
     shelfFolder + "Shelf_01_1k.fbx",
     shelfFolder + "textures/Shelf_01_diff_1k.jpg"
-);
+);std::string lampFolder =
+    std::string(PROJECT_ROOT) +
+    "/assets/models/desk_lamp_arm_01_1k/";
 
+Model lamp(
+    lampFolder + "desk_lamp_arm_01_1k.gltf",
+    lampFolder + "textures/desk_lamp_arm_01_diff_1k.jpg"
+);
         GLint modelLocation = glGetUniformLocation(program, "model");
         GLint viewLocation = glGetUniformLocation(program, "view");
         GLint projectionLocation =
@@ -186,9 +192,10 @@ glUniform3f(
     -0.5f, -1.0f, -0.3f
 );
 
+// Place the warm light near the lamp shade
 glUniform3f(
     glGetUniformLocation(program, "pointPosition"),
-    -1.2f, 1.5f, 0.8f
+    -0.65f, 0.9f, -0.1f
 );
 
 glUniform3f(
@@ -375,7 +382,21 @@ glUniformMatrix4fv(
     modelLocation, 1, GL_FALSE, glm::value_ptr(tableModel)
 );
 table.draw();
+// Start near the left edge of the table
+glm::mat4 lampModel = glm::translate(
+    glm::mat4(1.0f),
+   glm::vec3(-0.7f, 0.65f, -0.4f)
+);
 
+lampModel = glm::scale(
+    lampModel,
+    glm::vec3(0.3f)
+);
+
+glUniformMatrix4fv(
+    modelLocation, 1, GL_FALSE, glm::value_ptr(lampModel)
+);
+lamp.draw();
 // Our loader gives every model a longest side of two units
 // Scale the chair down and place it beside the table
 glm::mat4 chairModel = glm::translate(
