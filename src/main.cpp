@@ -153,6 +153,9 @@ Model chair(
 Model floor(
     std::string(PROJECT_ROOT) + "/assets/models/study_floor/floor.obj",
     std::string(PROJECT_ROOT) + "/assets/textures/study_floor.jpg"
+);Model walls(
+    std::string(PROJECT_ROOT) + "/assets/models/study_room/walls.obj",
+    std::string(PROJECT_ROOT) + "/assets/textures/study_wall.jpg"
 );
         GLint modelLocation = glGetUniformLocation(program, "model");
         GLint viewLocation = glGetUniformLocation(program, "view");
@@ -190,8 +193,8 @@ glUniform3f(
     -1.5f, -2.5f, -2.0f
 );
 
-       glm::mat4 view = glm::lookAt(
-    glm::vec3(3.0f, 2.2f, 4.0f),
+   glm::mat4 view = glm::lookAt(
+    glm::vec3(3.0f, 1.8f, 3.5f),
     glm::vec3(0.0f, 0.0f, 0.0f),
     glm::vec3(0.0f, 1.0f, 0.0f)
 );
@@ -330,6 +333,22 @@ glUniformMatrix4fv(
     modelLocation, 1, GL_FALSE, glm::value_ptr(floorModel)
 );
 floor.draw();
+
+// Match the walls to the floor edges
+glm::mat4 wallModel = glm::translate(
+    glm::mat4(1.0f),
+    glm::vec3(0.0f, 0.85f, 0.0f)
+);
+
+wallModel = glm::scale(
+    wallModel,
+    glm::vec3(4.0f)
+);
+
+glUniformMatrix4fv(
+    modelLocation, 1, GL_FALSE, glm::value_ptr(wallModel)
+);
+walls.draw();
 // The table stays at the centre.
 glm::mat4 tableModel(1.0f);
 
