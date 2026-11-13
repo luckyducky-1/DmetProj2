@@ -157,6 +157,15 @@ Model floor(
     std::string(PROJECT_ROOT) + "/assets/models/study_room/walls.obj",
     std::string(PROJECT_ROOT) + "/assets/textures/study_wall.jpg"
 );
+std::string shelfFolder =
+    std::string(PROJECT_ROOT) +
+    "/assets/models/Shelf_01_1k/";
+
+Model shelf(
+    shelfFolder + "Shelf_01_1k.fbx",
+    shelfFolder + "textures/Shelf_01_diff_1k.jpg"
+);
+
         GLint modelLocation = glGetUniformLocation(program, "model");
         GLint viewLocation = glGetUniformLocation(program, "view");
         GLint projectionLocation =
@@ -348,8 +357,18 @@ wallModel = glm::scale(
 glUniformMatrix4fv(
     modelLocation, 1, GL_FALSE, glm::value_ptr(wallModel)
 );
+
 walls.draw();
-// The table stays at the centre.
+// Keep the shelf near the back wall
+glm::mat4 shelfModel = glm::translate(
+    glm::mat4(1.0f),
+    glm::vec3(-1.8f, 0.35f, -3.5f)
+);
+
+glUniformMatrix4fv(
+    modelLocation, 1, GL_FALSE, glm::value_ptr(shelfModel)
+);
+shelf.draw();
 glm::mat4 tableModel(1.0f);
 
 glUniformMatrix4fv(
