@@ -12,6 +12,7 @@
 #include <vector>
 #include <algorithm>
 #include <limits>
+#include <assimp/material.h>
 namespace {
     struct Vertex {
         float position[3];
@@ -79,7 +80,17 @@ float fitScale = 2.0f / longestSide;
 
         for (unsigned int m = 0; m < scene->mNumMeshes; ++m) {
             const aiMesh* source = scene->mMeshes[m];
+aiString materialName;
 
+scene->mMaterials[source->mMaterialIndex]->Get(
+    AI_MATKEY_NAME, materialName
+);
+
+// Skip the glass so the clock face stays visible
+if (std::string(materialName.C_Str()) ==
+    "vintage_grandfather_clock_01_glass") {
+    continue;
+}
             if (!source->HasPositions() ||
                 !source->HasNormals() ||
                 !source->HasTextureCoords(0)) {

@@ -12,6 +12,7 @@
 #include <string>
 #include "Model.h"
 #include <cmath>
+
 void resizeWindow(GLFWwindow*, int width, int height)
 {
     glViewport(0, 0, width, height);
@@ -171,6 +172,13 @@ Model shelf(
 Model lamp(
     lampFolder + "desk_lamp_arm_01_1k.gltf",
     lampFolder + "textures/desk_lamp_arm_01_diff_1k.jpg"
+);std::string clockFolder =
+    std::string(PROJECT_ROOT) +
+    "/assets/models/vintage_grandfather_clock_01_1k/";
+
+Model clock(
+    clockFolder + "vintage_grandfather_clock_01_1k.gltf",
+    clockFolder + "textures/vintage_grandfather_clock_01_diff_1k.jpg"
 );
         GLint modelLocation = glGetUniformLocation(program, "model");
         GLint viewLocation = glGetUniformLocation(program, "view");
@@ -376,6 +384,16 @@ glUniformMatrix4fv(
     modelLocation, 1, GL_FALSE, glm::value_ptr(shelfModel)
 );
 shelf.draw();
+// Place the clock beside the bookshelf
+glm::mat4 clockModel = glm::translate(
+    glm::mat4(1.0f),
+    glm::vec3(-0.3f, 0.35f, -3.5f)
+);
+
+glUniformMatrix4fv(
+    modelLocation, 1, GL_FALSE, glm::value_ptr(clockModel)
+);
+clock.draw();
 glm::mat4 tableModel(1.0f);
 
 glUniformMatrix4fv(
