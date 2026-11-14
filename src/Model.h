@@ -19,14 +19,16 @@ public:
     Model& operator=(const Model&) = delete;
 
     void draw() const;
-
+float getBottom() const;
 private:
+float bottom = 0.0f;
     struct Mesh {
         GLuint vao = 0;
         GLuint vbo = 0;
         GLuint ebo = 0;
         GLuint texture = 0;
         GLsizei indexCount = 0;
+        
     };
 
     std::vector<Mesh> meshes;

@@ -167,12 +167,13 @@ Model shelf(
     shelfFolder + "textures/Shelf_01_diff_1k.jpg"
 );std::string lampFolder =
     std::string(PROJECT_ROOT) +
-    "/assets/models/desk_lamp_arm_01_1k/";
+    "/assets/models/bankers_lamp/";
 
 Model lamp(
-    lampFolder + "desk_lamp_arm_01_1k.gltf",
-    lampFolder + "textures/desk_lamp_arm_01_diff_1k.jpg"
-);std::string clockFolder =
+    lampFolder + "obj/SM_DeskLamp_Antique_01.obj",
+    lampFolder + "_Textures/T_DeskLamp_Antique_01_Albedo.png"
+);
+std::string clockFolder =
     std::string(PROJECT_ROOT) +
     "/assets/models/vintage_grandfather_clock_01_1k/";
 
@@ -195,6 +196,14 @@ Model globe(
 Model painting(
     paintingFolder + "fancy_picture_frame_01_1k.gltf",
     paintingFolder + "textures/fancy_picture_frame_01_diff_1k.jpg"
+);
+std::string chestFolder =
+    std::string(PROJECT_ROOT) +
+    "/assets/models/treasure_chest_1k/";
+
+Model chest(
+    chestFolder + "treasure_chest_1k.gltf",
+    chestFolder + "textures/treasure_chest_diff_1k.jpg"
 );
         GLint modelLocation = glGetUniformLocation(program, "model");
         GLint viewLocation = glGetUniformLocation(program, "view");
@@ -440,6 +449,25 @@ glUniformMatrix4fv(
     modelLocation, 1, GL_FALSE, glm::value_ptr(paintingModel)
 );
 painting.draw();
+// Rest the chest on the floor beneath the painting
+float floorHeight = -0.65f;
+float chestScale = 0.65f;
+float chestHeight = floorHeight - chest.getBottom() * chestScale;
+
+glm::mat4 chestModel = glm::translate(
+    glm::mat4(1.0f),
+    glm::vec3(1.4f, chestHeight, -3.1f)
+);
+
+chestModel = glm::scale(
+    chestModel,
+    glm::vec3(chestScale)
+);
+
+glUniformMatrix4fv(
+    modelLocation, 1, GL_FALSE, glm::value_ptr(chestModel)
+);
+chest.draw();
 glm::mat4 tableModel(1.0f);
 
 glUniformMatrix4fv(
@@ -447,14 +475,24 @@ glUniformMatrix4fv(
 );
 table.draw();
 // Start near the left edge of the table
+// Rest the lamp base on the tabletop
+float lampScale = 0.25f;
+float tableTop = -table.getBottom();
+float lampHeight = tableTop - lamp.getBottom() * lampScale;
+
 glm::mat4 lampModel = glm::translate(
     glm::mat4(1.0f),
-   glm::vec3(-0.7f, 0.65f, -0.4f)
+    glm::vec3(-0.65f, lampHeight, -0.15f)
 );
-
+// Face the lamp toward the chair
+lampModel = glm::rotate(
+    lampModel,
+    glm::radians(180.0f),
+    glm::vec3(0.0f, 1.0f, 0.0f)
+);
 lampModel = glm::scale(
     lampModel,
-    glm::vec3(0.3f)
+    glm::vec3(lampScale)
 );
 
 glUniformMatrix4fv(
@@ -463,19 +501,30 @@ glUniformMatrix4fv(
 lamp.draw();
 // Our loader gives every model a longest side of two units
 // Scale the chair down and place it beside the table
+// Face the chair toward the desk and keep its feet on the floor
+float chairScale = 0.65f;
+float chairHeight = -0.65f - chair.getBottom() * chairScale;
+
 glm::mat4 chairModel = glm::translate(
     glm::mat4(1.0f),
-    glm::vec3(1.4f, 0.0f, 0.0f)
+    glm::vec3(0.3f, chairHeight, 1.0f)
+);
+
+chairModel = glm::rotate(
+    chairModel,
+    glm::radians(180.0f),
+    glm::vec3(0.0f, 1.0f, 0.0f)
 );
 
 chairModel = glm::scale(
     chairModel,
-    glm::vec3(0.65f)
+    glm::vec3(chairScale)
 );
 
 glUniformMatrix4fv(
     modelLocation, 1, GL_FALSE, glm::value_ptr(chairModel)
 );
+chair.draw();
 chair.draw();
             glfwSwapBuffers(window);
         }

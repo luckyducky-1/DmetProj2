@@ -77,7 +77,10 @@ if (longestSide <= 0.0f) {
     throw std::runtime_error("Model has no measurable size.");
 }
 
+
 float fitScale = 2.0f / longestSide;
+// Store the bottom after centering and scaling
+bottom = (minimum.y - center.y) * fitScale;
         meshes.reserve(scene->mNumMeshes);
 std::unordered_map<std::string, GLuint> loadedTextures;
 
@@ -299,4 +302,8 @@ materialTextures.clear();
 Model::~Model()
 {
     release();
+}
+float Model::getBottom() const
+{
+    return bottom;
 }
