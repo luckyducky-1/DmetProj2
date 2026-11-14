@@ -13,6 +13,8 @@
 #include <algorithm>
 #include <limits>
 #include <assimp/material.h>
+#include <filesystem>
+#include <unordered_map>
 namespace {
     struct Vertex {
         float position[3];
@@ -77,7 +79,10 @@ if (longestSide <= 0.0f) {
 
 float fitScale = 2.0f / longestSide;
         meshes.reserve(scene->mNumMeshes);
+std::unordered_map<std::string, GLuint> loadedTextures;
 
+std::filesystem::path modelFolder =
+    std::filesystem::path(modelPath).parent_path();
         for (unsigned int m = 0; m < scene->mNumMeshes; ++m) {
             const aiMesh* source = scene->mMeshes[m];
 aiString materialName;
@@ -135,7 +140,43 @@ if (std::string(materialName.C_Str()) ==
             meshes.emplace_back();
             Mesh& mesh = meshes.back();
             mesh.indexCount = static_cast<GLsizei>(indices.size());
+// Use the mesh's own colour texture when one is available
+const aiMaterial* material =
+    scene->mMaterials[source->mMaterialIndex];
 
+aiString imagePath;
+
+bool hasImage =
+    material->GetTexture(aiTextureType_BASE_COLOR, 0, &imagePath)
+        == AI_SUCCESS;
+
+if (!hasImage) {
+    hasImage =
+        material->GetTexture(aiTextureType_DIFFUSE, 0, &imagePath)
+            == AI_SUCCESS;
+}
+
+if (hasImage) {
+    std::string relativePath = imagePath.C_Str();
+    std::replace(relativePath.begin(), relativePath.end(), '\\', '/');
+
+    std::filesystem::path fullPath = modelFolder / relativePath;
+
+    if (std::filesystem::is_regular_file(fullPath)) {
+        std::string key = fullPath.lexically_normal().string();
+        auto existing = loadedTextures.find(key);
+
+        if (existing != loadedTextures.end()) {
+            mesh.texture = existing->second;
+        } else {
+            loadTexture(key);
+            mesh.texture = texture;
+            materialTextures.push_back(texture);
+            texture = 0;
+            loadedTextures.emplace(key, mesh.texture);
+        }
+    }
+}
             glGenVertexArrays(1, &mesh.vao);
             glGenBuffers(1, &mesh.vbo);
             glGenBuffers(1, &mesh.ebo);
@@ -222,10 +263,15 @@ void Model::loadTexture(const std::string& path)
 void Model::draw() const
 {
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texture);
 
     for (const Mesh& mesh : meshes) {
+        GLuint meshTexture = mesh.texture != 0
+            ? mesh.texture
+            : texture;
+
+        glBindTexture(GL_TEXTURE_2D, meshTexture);
         glBindVertexArray(mesh.vao);
+
         glDrawElements(
             GL_TRIANGLES, mesh.indexCount, GL_UNSIGNED_INT, nullptr
         );
@@ -233,7 +279,6 @@ void Model::draw() const
 
     glBindVertexArray(0);
 }
-
 void Model::release()
 {
     for (const Mesh& mesh : meshes) {
@@ -241,7 +286,11 @@ void Model::release()
         glDeleteBuffers(1, &mesh.vbo);
         glDeleteBuffers(1, &mesh.ebo);
     }
+for (GLuint image : materialTextures) {
+    glDeleteTextures(1, &image);
+}
 
+materialTextures.clear();
     meshes.clear();
     glDeleteTextures(1, &texture);
     texture = 0;

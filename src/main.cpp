@@ -188,6 +188,14 @@ Model globe(
     globeFolder + "Old_Antique_Standing_Globe_.fbx",
     globeFolder + "Textures/Diffuse.png"
 );
+ std::string paintingFolder =
+    std::string(PROJECT_ROOT) +
+    "/assets/models/fancy_picture_frame_01_1k/";
+
+Model painting(
+    paintingFolder + "fancy_picture_frame_01_1k.gltf",
+    paintingFolder + "textures/fancy_picture_frame_01_diff_1k.jpg"
+);
         GLint modelLocation = glGetUniformLocation(program, "model");
         GLint viewLocation = glGetUniformLocation(program, "view");
         GLint projectionLocation =
@@ -417,6 +425,21 @@ glUniformMatrix4fv(
     modelLocation, 1, GL_FALSE, glm::value_ptr(globeModel)
 );
 globe.draw();
+// Hang the painting beside the clock
+glm::mat4 paintingModel = glm::translate(
+    glm::mat4(1.0f),
+    glm::vec3(1.4f, 1.1f, -3.85f)
+);
+
+paintingModel = glm::scale(
+    paintingModel,
+    glm::vec3(0.6f)
+);
+
+glUniformMatrix4fv(
+    modelLocation, 1, GL_FALSE, glm::value_ptr(paintingModel)
+);
+painting.draw();
 glm::mat4 tableModel(1.0f);
 
 glUniformMatrix4fv(
