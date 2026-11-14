@@ -180,6 +180,14 @@ Model clock(
     clockFolder + "vintage_grandfather_clock_01_1k.gltf",
     clockFolder + "textures/vintage_grandfather_clock_01_diff_1k.jpg"
 );
+std::string globeFolder =
+    std::string(PROJECT_ROOT) +
+    "/assets/models/antique_globe/";
+
+Model globe(
+    globeFolder + "Old_Antique_Standing_Globe_.fbx",
+    globeFolder + "Textures/Diffuse.png"
+);
         GLint modelLocation = glGetUniformLocation(program, "model");
         GLint viewLocation = glGetUniformLocation(program, "view");
         GLint projectionLocation =
@@ -394,6 +402,21 @@ glUniformMatrix4fv(
     modelLocation, 1, GL_FALSE, glm::value_ptr(clockModel)
 );
 clock.draw();
+// Place the globe beside the desk
+glm::mat4 globeModel = glm::translate(
+    glm::mat4(1.0f),
+    glm::vec3(-1.8f, -0.05f, 0.3f)
+);
+
+globeModel = glm::scale(
+    globeModel,
+    glm::vec3(0.6f)
+);
+
+glUniformMatrix4fv(
+    modelLocation, 1, GL_FALSE, glm::value_ptr(globeModel)
+);
+globe.draw();
 glm::mat4 tableModel(1.0f);
 
 glUniformMatrix4fv(
