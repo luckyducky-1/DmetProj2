@@ -12,6 +12,7 @@
 #include <string>
 #include "Model.h"
 #include <cmath>
+#include <algorithm>
 
 void resizeWindow(GLFWwindow*, int width, int height)
 {
@@ -260,6 +261,12 @@ glUniform3f(
         bool horrorMode = false;
 bool hWasPressed = false;
 
+// Chest opening animation
+bool chestOpen = false;
+bool oWasPressed = false;
+
+float lidAngle = 0.0f;
+float lastFrameTime = static_cast<float>(glfwGetTime());
         while (!glfwWindowShouldClose(window)) {
             glfwPollEvents();
 bool hPressed = glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS;
@@ -277,6 +284,27 @@ if (hPressed && !hWasPressed) {
 }
 
 hWasPressed = hPressed;
+// Press O to open or close the chest
+bool oPressed = glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS;
+
+if (oPressed && !oWasPressed) {
+    chestOpen = !chestOpen;
+}
+
+oWasPressed = oPressed;
+// Move the lid gradually toward its target angle
+float currentTime = static_cast<float>(glfwGetTime());
+float deltaTime = currentTime - lastFrameTime;
+lastFrameTime = currentTime;
+
+float targetAngle = chestOpen ? -75.0f : 0.0f;
+float animationSpeed = 60.0f;
+
+if (lidAngle < targetAngle) {
+    lidAngle = std::min(lidAngle + animationSpeed * deltaTime, targetAngle);
+} else if (lidAngle > targetAngle) {
+    lidAngle = std::max(lidAngle - animationSpeed * deltaTime, targetAngle);
+}
             if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
                 glfwSetWindowShouldClose(window, GLFW_TRUE);
             }
@@ -463,11 +491,7 @@ chestModel = glm::scale(
     chestModel,
     glm::vec3(chestScale)
 );
-
-glUniformMatrix4fv(
-    modelLocation, 1, GL_FALSE, glm::value_ptr(chestModel)
-);
-chest.draw();
+// The chest is drawn later so its lid can move separately.
 glm::mat4 tableModel(1.0f);
 
 glUniformMatrix4fv(
@@ -521,10 +545,45 @@ chairModel = glm::scale(
     glm::vec3(chairScale)
 );
 
+// Draw the chest without moving its base
+glUniformMatrix4fv(
+    modelLocation, 1, GL_FALSE, glm::value_ptr(chestModel)
+);
+
+chest.drawMesh(0);
+chest.drawMesh(2);
+chest.drawMesh(3);
+chest.drawMesh(4);
+
+// Back edge of the lid, after model scaling
+glm::vec3 lidHinge(0.0f, 0.2350f, -0.5452f);
+glm::mat4 lidModel = glm::translate(
+    chestModel,
+    lidHinge
+);
+
+lidModel = glm::rotate(
+    lidModel,
+    glm::radians(lidAngle),
+    glm::vec3(1.0f, 0.0f, 0.0f)
+);
+
+lidModel = glm::translate(
+    lidModel,
+    -lidHinge
+);
+
+glUniformMatrix4fv(
+    modelLocation, 1, GL_FALSE, glm::value_ptr(lidModel)
+);
+
+chest.drawMesh(1);
+
+// Draw the chair in its original position
 glUniformMatrix4fv(
     modelLocation, 1, GL_FALSE, glm::value_ptr(chairModel)
 );
-chair.draw();
+
 chair.draw();
             glfwSwapBuffers(window);
         }

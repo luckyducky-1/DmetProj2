@@ -19,10 +19,12 @@ public:
     Model& operator=(const Model&) = delete;
 
     void draw() const;
+    void drawMesh(unsigned int index) const;
 float getBottom() const;
 private:
 float bottom = 0.0f;
     struct Mesh {
+        std::string name;
         GLuint vao = 0;
         GLuint vbo = 0;
         GLuint ebo = 0;

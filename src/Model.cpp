@@ -3,7 +3,7 @@
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
-
+#include <assimp/matrix4x4.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
@@ -15,6 +15,7 @@
 #include <assimp/material.h>
 #include <filesystem>
 #include <unordered_map>
+#include <iostream>
 namespace {
     struct Vertex {
         float position[3];
@@ -31,13 +32,39 @@ Model::Model(
     Assimp::Importer importer;
 
     // Bake imported node transforms into the mesh vertices.
-    const aiScene* scene = importer.ReadFile(
-        modelPath,
-        aiProcess_Triangulate |
-        aiProcess_GenSmoothNormals |
-        aiProcess_PreTransformVertices
-    );
+    unsigned int importFlags =
+    aiProcess_Triangulate |
+    aiProcess_GenSmoothNormals;
 
+bool isChest =
+    modelPath.find("treasure_chest_1k.gltf") != std::string::npos;
+
+if (!isChest) {
+    importFlags |= aiProcess_PreTransformVertices;
+}
+
+const aiScene* scene = importer.ReadFile(
+    modelPath,
+    importFlags
+);
+if (scene &&
+    modelPath.find("Old_Antique_Standing_Globe_") != std::string::npos) {
+
+    std::cout << "\nGlobe nodes:\n";
+
+    auto printNodes = [&](auto&& self, const aiNode* node, int depth) -> void {
+        std::cout << std::string(depth * 2, ' ')
+                  << node->mName.C_Str()
+                  << " | Meshes: " << node->mNumMeshes
+                  << std::endl;
+
+        for (unsigned int i = 0; i < node->mNumChildren; ++i) {
+            self(self, node->mChildren[i], depth + 1);
+        }
+    };
+
+    printNodes(printNodes, scene->mRootNode, 0);
+}
     if (!scene || !scene->mRootNode || !scene->HasMeshes()) {
         throw std::runtime_error(
             "Cannot load model: " + modelPath +
@@ -46,7 +73,24 @@ Model::Model(
     }
 
     try {
+
         // Measure the whole model before uploading its meshes.
+        // Keep track of each chest part's original position
+std::vector<aiMatrix4x4> meshTransforms(
+    scene->mNumMeshes,
+    aiMatrix4x4()
+);
+
+if (isChest) {
+    for (unsigned int i = 0; i < scene->mRootNode->mNumChildren; ++i) {
+        const aiNode* node = scene->mRootNode->mChildren[i];
+
+        for (unsigned int j = 0; j < node->mNumMeshes; ++j) {
+            unsigned int meshIndex = node->mMeshes[j];
+            meshTransforms[meshIndex] = node->mTransformation;
+        }
+    }
+}
 float largest = std::numeric_limits<float>::max();
 
 aiVector3D minimum(largest, largest, largest);
@@ -56,7 +100,7 @@ for (unsigned int m = 0; m < scene->mNumMeshes; ++m) {
     const aiMesh* mesh = scene->mMeshes[m];
 
     for (unsigned int i = 0; i < mesh->mNumVertices; ++i) {
-        const aiVector3D& p = mesh->mVertices[i];
+       aiVector3D p = meshTransforms[m] * mesh->mVertices[i];
 
         minimum.x = std::min(minimum.x, p.x);
         minimum.y = std::min(minimum.y, p.y);
@@ -113,10 +157,15 @@ if (std::string(materialName.C_Str()) ==
             vertices.reserve(source->mNumVertices);
 
             for (unsigned int i = 0; i < source->mNumVertices; ++i) {
-                const auto& p = source->mVertices[i];
-                const auto& n = source->mNormals[i];
-                const auto& uv = source->mTextureCoords[0][i];
+               aiVector3D p = meshTransforms[m] * source->mVertices[i];
 
+aiMatrix3x3 normalTransform(meshTransforms[m]);
+normalTransform.Inverse().Transpose();
+
+aiVector3D n = normalTransform * source->mNormals[i];
+n.Normalize();
+
+const auto& uv = source->mTextureCoords[0][i];
              vertices.push_back({
     {
         (p.x - center.x) * fitScale,
@@ -142,7 +191,24 @@ if (std::string(materialName.C_Str()) ==
 
             meshes.emplace_back();
             Mesh& mesh = meshes.back();
+            mesh.name = source->mName.C_Str();
+            // Show the globe parts so we can find the sphere
+if (modelPath.find("Old_Antique_Standing_Globe_") != std::string::npos) {
+    std::cout << "Globe mesh " << m
+              << " | Name: " << mesh.name
+              << " | Vertices: " << source->mNumVertices
+              << std::endl;
+}
             mesh.indexCount = static_cast<GLsizei>(indices.size());
+  if (modelPath.find("treasure_chest") != std::string::npos) {
+    std::cout << "Mesh index: " << m
+              << " | Name: " << mesh.name
+              << " | Vertices: " << source->mNumVertices
+              << std::endl;
+}
+            if (modelPath.find("treasure_chest") != std::string::npos) {
+    std::cout << "Chest mesh: " << mesh.name << std::endl;
+}
 // Use the mesh's own colour texture when one is available
 const aiMaterial* material =
     scene->mMaterials[source->mMaterialIndex];
@@ -279,6 +345,31 @@ void Model::draw() const
             GL_TRIANGLES, mesh.indexCount, GL_UNSIGNED_INT, nullptr
         );
     }
+
+    glBindVertexArray(0);
+}
+void Model::drawMesh(unsigned int index) const
+{
+    if (index >= meshes.size()) {
+        return;
+    }
+
+    const Mesh& mesh = meshes[index];
+
+    GLuint meshTexture = mesh.texture != 0
+        ? mesh.texture
+        : texture;
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, meshTexture);
+    glBindVertexArray(mesh.vao);
+
+    glDrawElements(
+        GL_TRIANGLES,
+        mesh.indexCount,
+        GL_UNSIGNED_INT,
+        nullptr
+    );
 
     glBindVertexArray(0);
 }
