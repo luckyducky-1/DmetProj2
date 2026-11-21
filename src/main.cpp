@@ -187,7 +187,7 @@ std::string globeFolder =
     "/assets/models/antique_globe/";
 
 Model globe(
-    globeFolder + "Old_Antique_Standing_Globe_.fbx",
+    globeFolder + "globe_separated.glb",
     globeFolder + "Textures/Diffuse.png"
 );
  std::string paintingFolder =
@@ -243,9 +243,11 @@ glUniform3f(
     -1.5f, -2.5f, -2.0f
 );
 
-   glm::mat4 view = glm::lookAt(
+glm::vec3 cameraTarget(0.0f, 0.0f, 0.0f);
+
+glm::mat4 view = glm::lookAt(
     glm::vec3(3.0f, 1.8f, 3.5f),
-    glm::vec3(0.0f, 0.0f, 0.0f),
+    cameraTarget,
     glm::vec3(0.0f, 1.0f, 0.0f)
 );
 
@@ -266,6 +268,12 @@ bool chestOpen = false;
 bool oWasPressed = false;
 
 float lidAngle = 0.0f;
+// Globe interaction
+bool globeSpinning = false;
+bool eWasPressed = false;
+float globeAngle = 0.0f;
+// Player's starting position
+glm::vec3 playerPosition(3.0f, 1.8f, 3.5f);
 float lastFrameTime = static_cast<float>(glfwGetTime());
         while (!glfwWindowShouldClose(window)) {
             glfwPollEvents();
@@ -292,11 +300,73 @@ if (oPressed && !oWasPressed) {
 }
 
 oWasPressed = oPressed;
+// Detect a single press of E
+bool ePressed = glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS;
+
+// Globe interaction position and range
+glm::vec3 globePosition(-1.8f, -0.05f, 0.3f);
+float globeInteractionRange = 1.5f;
+
+// Use the player's actual position
+glm::vec3 cameraPosition = playerPosition;
+
+// Calculate horizontal distance to the globe
+float distanceToGlobe = glm::length(
+    glm::vec2(
+        cameraPosition.x - globePosition.x,
+        cameraPosition.z - globePosition.z
+    )
+);
+
+// Only interact when close enough
+if (ePressed && !eWasPressed && !globeSpinning) {
+
+    globeSpinning = true;
+    globeAngle = 0.0f;
+}
+eWasPressed = ePressed;
 // Move the lid gradually toward its target angle
 float currentTime = static_cast<float>(glfwGetTime());
 float deltaTime = currentTime - lastFrameTime;
 lastFrameTime = currentTime;
+// Player movement using WASD
+float moveSpeed = 2.0f * deltaTime;
 
+// Direction toward the camera target, along the floor
+glm::vec3 forward = cameraTarget - playerPosition;
+forward.y = 0.0f;
+forward = glm::normalize(forward);
+
+// Direction to the player's right
+glm::vec3 right = glm::normalize(
+    glm::cross(forward, glm::vec3(0.0f, 1.0f, 0.0f))
+);
+
+if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+    playerPosition += forward * moveSpeed;
+}
+
+if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+    playerPosition -= forward * moveSpeed;
+}
+
+if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+    playerPosition -= right * moveSpeed;
+}
+
+if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+    playerPosition += right * moveSpeed;
+}
+// Animate the globe after interaction
+if (globeSpinning) {
+    globeAngle += 120.0f * deltaTime;
+
+    // Complete one full rotation, then reset
+    if (globeAngle >= 360.0f) {
+        globeAngle = 0.0f;
+        globeSpinning = false;
+    }
+}
 float targetAngle = chestOpen ? -75.0f : 0.0f;
 float animationSpeed = 60.0f;
 
@@ -315,7 +385,19 @@ if (lidAngle < targetAngle) {
             if (width == 0 || height == 0) {
                 continue;
             }
+// Update the camera every frame
+view = glm::lookAt(
+    playerPosition,
+    cameraTarget,
+    glm::vec3(0.0f, 1.0f, 0.0f)
+);
 
+glUniformMatrix4fv(
+    viewLocation,
+    1,
+    GL_FALSE,
+    glm::value_ptr(view)
+);
             glViewport(0, 0, width, height);
             glClearColor(0.08f, 0.09f, 0.12f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -461,7 +543,32 @@ globeModel = glm::scale(
 glUniformMatrix4fv(
     modelLocation, 1, GL_FALSE, glm::value_ptr(globeModel)
 );
-globe.draw();
+
+// Temporarily display mesh 1 only
+// Draw the stationary globe stand
+glUniformMatrix4fv(
+    modelLocation, 1, GL_FALSE, glm::value_ptr(globeModel)
+);
+globe.drawMesh(0);
+
+// Center of the globe sphere
+glm::vec3 sphereCenter(-0.0639353f, 0.346364f, 0.081445f);
+
+// Rotate the sphere around its own center
+glm::mat4 sphereModel = glm::translate(globeModel, sphereCenter);
+
+sphereModel = glm::rotate(
+    sphereModel,
+    glm::radians(globeAngle),
+    glm::vec3(0.0f, 1.0f, 0.0f)
+);
+sphereModel = glm::translate(sphereModel, -sphereCenter);
+
+// Draw only the rotating sphere
+glUniformMatrix4fv(
+    modelLocation, 1, GL_FALSE, glm::value_ptr(sphereModel)
+);
+globe.drawMesh(1);
 // Hang the painting beside the clock
 glm::mat4 paintingModel = glm::translate(
     glm::mat4(1.0f),

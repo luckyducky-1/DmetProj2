@@ -1,21 +1,19 @@
 #include "Model.h"
-
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 #include <assimp/matrix4x4.h>
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-
+#include <assimp/material.h>
 #include <cstddef>
 #include <stdexcept>
 #include <vector>
 #include <algorithm>
 #include <limits>
-#include <assimp/material.h>
 #include <filesystem>
 #include <unordered_map>
 #include <iostream>
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 namespace {
     struct Vertex {
         float position[3];
@@ -39,10 +37,12 @@ Model::Model(
 bool isChest =
     modelPath.find("treasure_chest_1k.gltf") != std::string::npos;
 
-if (!isChest) {
+bool isGlobe =
+    modelPath.find("globe_separated.glb") != std::string::npos;
+
+if (!isChest && !isGlobe) {
     importFlags |= aiProcess_PreTransformVertices;
 }
-
 const aiScene* scene = importer.ReadFile(
     modelPath,
     importFlags
@@ -81,15 +81,29 @@ std::vector<aiMatrix4x4> meshTransforms(
     aiMatrix4x4()
 );
 
-if (isChest) {
-    for (unsigned int i = 0; i < scene->mRootNode->mNumChildren; ++i) {
-        const aiNode* node = scene->mRootNode->mChildren[i];
+if (isChest || isGlobe) {
+    auto applyNodeTransforms =
+        [&](auto&& self, const aiNode* node,
+            const aiMatrix4x4& parentTransform) -> void {
+
+        aiMatrix4x4 worldTransform =
+            parentTransform * node->mTransformation;
 
         for (unsigned int j = 0; j < node->mNumMeshes; ++j) {
             unsigned int meshIndex = node->mMeshes[j];
-            meshTransforms[meshIndex] = node->mTransformation;
+            meshTransforms[meshIndex] = worldTransform;
         }
-    }
+
+        for (unsigned int i = 0; i < node->mNumChildren; ++i) {
+            self(self, node->mChildren[i], worldTransform);
+        }
+    };
+
+    applyNodeTransforms(
+        applyNodeTransforms,
+        scene->mRootNode,
+        aiMatrix4x4()
+    );
 }
 float largest = std::numeric_limits<float>::max();
 
@@ -192,8 +206,37 @@ const auto& uv = source->mTextureCoords[0][i];
             meshes.emplace_back();
             Mesh& mesh = meshes.back();
             mesh.name = source->mName.C_Str();
+      if (isGlobe && m == 1) {
+    float sphereMin[3] = {
+        std::numeric_limits<float>::max(),
+        std::numeric_limits<float>::max(),
+        std::numeric_limits<float>::max()
+    };
+
+    float sphereMax[3] = {
+        std::numeric_limits<float>::lowest(),
+        std::numeric_limits<float>::lowest(),
+        std::numeric_limits<float>::lowest()
+    };
+
+    for (const auto& vertex : vertices) {
+        for (int i = 0; i < 3; ++i) {
+            sphereMin[i] = std::min(sphereMin[i], vertex.position[i]);
+            sphereMax[i] = std::max(sphereMax[i], vertex.position[i]);
+        }
+    }
+
+    std::cout << "Sphere center: "
+              << (sphereMin[0] + sphereMax[0]) * 0.5f << ", "
+              << (sphereMin[1] + sphereMax[1]) * 0.5f << ", "
+              << (sphereMin[2] + sphereMax[2]) * 0.5f
+              << std::endl;
+}
+
+
             // Show the globe parts so we can find the sphere
-if (modelPath.find("Old_Antique_Standing_Globe_") != std::string::npos) {
+// Check the parts of the new globe model
+if (modelPath.find("globe_separated.glb") != std::string::npos) {
     std::cout << "Globe mesh " << m
               << " | Name: " << mesh.name
               << " | Vertices: " << source->mNumVertices
@@ -394,6 +437,7 @@ Model::~Model()
 {
     release();
 }
+
 float Model::getBottom() const
 {
     return bottom;
