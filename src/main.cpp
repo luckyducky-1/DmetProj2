@@ -274,9 +274,21 @@ bool eWasPressed = false;
 float globeAngle = 0.0f;
 // Player's starting position
 glm::vec3 playerPosition(3.0f, 1.8f, 3.5f);
+// Camera viewing direction
+glm::vec3 cameraFront = glm::normalize(
+    glm::vec3(0.0f, 0.0f, 0.0f) - playerPosition
+);
 float lastFrameTime = static_cast<float>(glfwGetTime());
         while (!glfwWindowShouldClose(window)) {
             glfwPollEvents();
+            // Temporary test for arrow keys
+if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
+    std::cout << "LEFT arrow detected!" << std::endl;
+}
+
+if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+    std::cout << "RIGHT arrow detected!" << std::endl;
+}
 bool hPressed = glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS;
 
 // Toggle once per press, rather than once per frame.
@@ -292,20 +304,57 @@ if (hPressed && !hWasPressed) {
 }
 
 hWasPressed = hPressed;
-// Press O to open or close the chest
+// Press O to open or close the chest when nearby
 bool oPressed = glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS;
 
-if (oPressed && !oWasPressed) {
-    chestOpen = !chestOpen;
-}
+// Chest position in the room
+glm::vec3 chestPosition(1.4f, 0.0f, -3.1f);
 
+// Maximum interaction distance
+float chestInteractionRange = 4.0f;
+
+// Calculate horizontal distance from player to chest
+float distanceToChest = glm::length(
+    glm::vec2(
+        playerPosition.x - chestPosition.x,
+        playerPosition.z - chestPosition.z
+    )
+);
+// Debug: show distance when O is pressed
+if (oPressed && !oWasPressed) {
+    std::cout << "Distance to chest: "
+              << distanceToChest << std::endl;
+}
+// Debug chest interaction
+if (oPressed && !oWasPressed) {
+    std::cout << "Player X: " << playerPosition.x
+              << " Z: " << playerPosition.z
+              << " | Chest X: " << chestPosition.x
+              << " Z: " << chestPosition.z
+              << " | Distance: " << distanceToChest
+              << " | Range: " << chestInteractionRange
+              << std::endl;
+}
+// Open or close only when close enough
+if (oPressed && !oWasPressed) {
+
+    std::cout << "Distance to chest: "
+              << distanceToChest << std::endl;
+
+    if (distanceToChest <= chestInteractionRange) {
+        chestOpen = !chestOpen;
+        std::cout << "Chest toggled!" << std::endl;
+    } else {
+        std::cout << "Too far from chest!" << std::endl;
+    }
+}
 oWasPressed = oPressed;
 // Detect a single press of E
 bool ePressed = glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS;
 
 // Globe interaction position and range
 glm::vec3 globePosition(-1.8f, -0.05f, 0.3f);
-float globeInteractionRange = 1.5f;
+float globeInteractionRange = 3.5f;
 
 // Use the player's actual position
 glm::vec3 cameraPosition = playerPosition;
@@ -318,22 +367,56 @@ float distanceToGlobe = glm::length(
     )
 );
 
-// Only interact when close enough
+// Rotate globe only when the player is nearby
 if (ePressed && !eWasPressed && !globeSpinning) {
 
-    globeSpinning = true;
-    globeAngle = 0.0f;
+    std::cout << "Distance to globe: "
+              << distanceToGlobe << std::endl;
+
+    if (distanceToGlobe <= globeInteractionRange) {
+        globeSpinning = true;
+        globeAngle = 0.0f;
+
+        std::cout << "Globe rotating!" << std::endl;
+    } else {
+        std::cout << "Too far from globe!" << std::endl;
+    }
 }
 eWasPressed = ePressed;
 // Move the lid gradually toward its target angle
 float currentTime = static_cast<float>(glfwGetTime());
 float deltaTime = currentTime - lastFrameTime;
 lastFrameTime = currentTime;
+// Camera rotation speed
+float rotationSpeed = 90.0f * deltaTime;
+
+// Turn camera left
+if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
+    cameraFront = glm::vec3(
+        glm::rotate(
+            glm::mat4(1.0f),
+            glm::radians(rotationSpeed),
+            glm::vec3(0.0f, 1.0f, 0.0f)
+        ) * glm::vec4(cameraFront, 0.0f)
+    );
+}
+
+// Turn camera right
+if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+    cameraFront = glm::vec3(
+        glm::rotate(
+            glm::mat4(1.0f),
+            glm::radians(-rotationSpeed),
+            glm::vec3(0.0f, 1.0f, 0.0f)
+        ) * glm::vec4(cameraFront, 0.0f)
+    );
+}
+
+cameraFront = glm::normalize(cameraFront);
 // Player movement using WASD
 float moveSpeed = 2.0f * deltaTime;
-
-// Direction toward the camera target, along the floor
-glm::vec3 forward = cameraTarget - playerPosition;
+// Move in the direction the camera is facing
+glm::vec3 forward = cameraFront;
 forward.y = 0.0f;
 forward = glm::normalize(forward);
 
@@ -388,10 +471,9 @@ if (lidAngle < targetAngle) {
 // Update the camera every frame
 view = glm::lookAt(
     playerPosition,
-    cameraTarget,
+    playerPosition + cameraFront,
     glm::vec3(0.0f, 1.0f, 0.0f)
 );
-
 glUniformMatrix4fv(
     viewLocation,
     1,
@@ -599,7 +681,13 @@ chestModel = glm::scale(
     glm::vec3(chestScale)
 );
 // The chest is drawn later so its lid can move separately.
-glm::mat4 tableModel(1.0f);
+// Position the table so its lowest point touches the floor
+float tableFloorHeight = -0.65f;
+
+glm::mat4 tableModel = glm::translate(
+    glm::mat4(1.0f),
+    glm::vec3(0.0f, tableFloorHeight - table.getBottom(), 0.0f)
+);
 
 glUniformMatrix4fv(
     modelLocation, 1, GL_FALSE, glm::value_ptr(tableModel)
@@ -608,9 +696,14 @@ table.draw();
 // Start near the left edge of the table
 // Rest the lamp base on the tabletop
 float lampScale = 0.25f;
-float tableTop = -table.getBottom();
-float lampHeight = tableTop - lamp.getBottom() * lampScale;
 
+// Table's new position after lowering it to the floor
+float tableY = tableFloorHeight - table.getBottom();
+
+// Calculate the tabletop height using the table's upper bound
+float tableTop = tableY + 0.40f;
+// Place the lamp base directly on the tabletop
+float lampHeight = tableTop - lamp.getBottom() * lampScale;
 glm::mat4 lampModel = glm::translate(
     glm::mat4(1.0f),
     glm::vec3(-0.65f, lampHeight, -0.15f)
